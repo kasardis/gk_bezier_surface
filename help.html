@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        h1 {
+            color: #0078d4;
+            border-bottom: 2px solid #0078d4;
+            padding-bottom: 5px;
+        }
+
+        h2 {
+            color: #2b2b2b;
+            margin-top: 20px;
+        }
+
+        .accent-box {
+            background-color: #f3f2f1;
+            border-left: 4px solid #0078d4;
+            padding: 10px 15px;
+            margin: 15px 0;
+        }
+
+        code {
+            background: #e1dfdd;
+            padding: 2px 5px;
+            font-family: Consolas, monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dokumentacja</h1>
+
+    <h2>Obroty</h2>
+    <p>Obracanie sceny w osiach X i Y odbywa się przy pomocy przeciągania lewym przyciskiem myszy po obszarze roboczym. Obracanie w osi Z realizowane jest za pomocą rolki myszy (scroll wheel).</p>
+    <p>
+        Algorytm obrotów mnoży pozycje wierzchołków oraz wektory normalne i pochodne (Pu, Pv) przez macierz transformacji 3D, generowaną na podstawie ruchu myszy dla osi X i Y oraz scrolla dla osi Z.
+        Przemieszczenie kursora myszy podczas przeciągania jest mierzone jako przyrost pikseli (delta), który po zeskalowaniu bezpośrednio modyfikuje kąty obrotu w osiach X i Y.
+        Obrót wokół osi Z jest wyznaczany przez wartość przesunięcia (deltę) rolki myszy, gdzie każdy krok przewijania inkrementuje lub dekrementuje aktualny kąt rotacji.
+    </p>
+    <h2>Rysowanie i Rasteryzacja</h2>
+    <p>Przy pomocy checkboxów w interfejsie użytkownika możliwe jest niezależne włączanie i wyłączanie poszczególnych warstw wizualizacji:</p>
+    <ul>
+        <li><strong>Siatka kontrolna Beziera:</strong> Wieloboki opisujące punkty kontrolne płatów.</li>
+        <li><strong>Siatka trójkątów:</strong> Krawędzie wygenerowanej triangulacji.</li>
+        <li><strong>Wypełnione trójkąty:</strong> Rasteryzacja z oświetleniem i cieniowaniem Phong/Lambert.</li>
+    </ul>
+    <p>Suwak umożliwia dynamiczną zmianę liczby kroków triangulacji (zakres od 2 do 40, wartość domyślna: 10).</p>
+
+    <h2>Światło i Model Oświetlenia</h2>
+    <p>
+        Źródło światła porusza się wzdłuż zamkniętej krzywej Beziera.
+    </p>
+    <ul>
+        <li>Wyświetlanie trajektorii światła i jej punktów kontrolnych sterowane jest checkboxami.</li>
+        <li>Punktami kontrolnymi światła można poruszać, przeciągając je lewym przyciskiem myszy.</li>
+        <li>Animację ruchu źródła światła można zatrzymać lub wznowić dedykowanym przyciskiem.</li>
+        <li>Kolor światła wybierany jest z palety przyciskiem.</li>
+    </ul>
+    <p>Parametry modelu oświetlenia (regulowane suwakami):</p>
+    <ul>
+        <li><code>kd</code> – współczynnik światła rozproszonego (0.0 do 1.0, domyślnie 0.7)</li>
+        <li><code>ks</code> – współczynnik światła odbitego (0.0 do 1.0, domyślnie 0.3)</li>
+        <li><code>m</code> – gładkość powierzchni / połyskliwość (1 do 100, domyślnie 32)</li>
+        <li><code>z_light</code> – współrzędna Z płaszczyzny światła (500 do 1000, domyślnie 500)</li>
+    </ul>
+
+    <h2>Tekstury i Normal Mapping</h2>
+    <p>Przy pomocy przełączników (radio buttons) wybierana jest metoda wyznaczania koloru powierzchni:</p>
+    <ul>
+        <li><strong>Kolor jednolity:</strong> Wybór koloru bazowego przyciskiem.</li>
+        <li><strong>Tekstura obrazu:</strong> Wczytanie pliku obrazu.</li>
+    </ul>
+    <p>
+        Modyfikacja wektorów normalnych włączana jest dedykowanym checkboxem. Mapa wektorów normalnych wczytywana jest z pliku obrazu.
+    </p>
+
+    <h2>Wczytywanie Pliku Sceny</h2>
+    <p>
+        Przyciskiem z paska menu można wczytać plik <code>.txt</code> zawierający strukturę punktów kontrolnych sceny.
+    </p>
+    <p>
+        <strong>Format pliku:</strong> Każda powierzchnia jest opisana przez 16 kolejnych wierszy. Każdy wiersz zawiera trzy liczby rzeczywiste <code>X Y Z</code> separowane spacjami, określające współrzędne pojedynczego punktu kontrolnego powierzchni Beziera.
+    </p>
+</body>
+</html>
