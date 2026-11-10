@@ -1,3 +1,4 @@
+using System.Drawing.Imaging;
 using System.Numerics;
 
 namespace BezierSurface
@@ -11,6 +12,7 @@ namespace BezierSurface
         int movingCpIndex = -1;
         LightSource lightSource { get; set; }
         System.Windows.Forms.Timer lightTimer { get; set; }
+        int colorSelectedIndex = 0;
 
         public Form1()
         {
@@ -261,6 +263,7 @@ namespace BezierSurface
 
         private void colorRadioButton_CheckedChanged(object sender, EventArgs e)
         {
+            /*
             foreach (var item in Scene)
             {
                 if (colorRadioButton.Checked)
@@ -272,6 +275,15 @@ namespace BezierSurface
                     item.SurfaceColorMode = BezierSurface.ColorMode.Image;
                 }
             }
+            */
+            if (colorRadioButton.Checked)
+            {
+                Scene[colorSelectedIndex].SurfaceColorMode = BezierSurface.ColorMode.Solid;
+            }
+            else
+            {
+                Scene[colorSelectedIndex].SurfaceColorMode = BezierSurface.ColorMode.Image;
+            }
             pictureBox1.Invalidate();
         }
 
@@ -280,10 +292,13 @@ namespace BezierSurface
             using ColorDialog colorDialog = new ColorDialog();
             if (colorDialog.ShowDialog() == DialogResult.OK)
             {
+                /*
                 foreach (var item in Scene)
                 {
                     item.FillColor = colorDialog.Color;
                 }
+                */
+                Scene[colorSelectedIndex].FillColor = colorDialog.Color;
             }
             pictureBox1.Invalidate();
         }
@@ -295,10 +310,36 @@ namespace BezierSurface
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 var bitmap = new Bitmap(openFileDialog.FileName);
+                /*
                 foreach (var item in Scene)
                 {
                     item.FillImage = bitmap;
                 }
+                */
+                Scene[colorSelectedIndex].FillImage = bitmap;
+
+                int fiWidth = bitmap.Width;
+                int fiHeight = bitmap.Height;
+                Color[,] fillImageCache = new Color[fiWidth, fiHeight];
+
+                BitmapData fiData = bitmap.LockBits(new Rectangle(0, 0, fiWidth, fiHeight), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                unsafe
+                {
+                    byte* ptr = (byte*)fiData.Scan0;
+                    for (int y = 0; y < fiHeight; y++)
+                    {
+                        byte* row = ptr + (y * fiData.Stride);
+                        for (int x = 0; x < fiWidth; x++)
+                        {
+                            int idx = x * 4;
+                            fillImageCache[x, y] = Color.FromArgb(row[idx + 3], row[idx + 2], row[idx + 1], row[idx + 0]);
+                        }
+                    }
+                }
+                bitmap.UnlockBits(fiData);
+                Scene[colorSelectedIndex].FillImageCache = fillImageCache;
+                Scene[colorSelectedIndex].FillImageWidth = fiWidth;
+                Scene[colorSelectedIndex].FillImageHeight = fiHeight;
             }
             pictureBox1.Invalidate();
         }
@@ -310,10 +351,36 @@ namespace BezierSurface
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 var bitmap = new Bitmap(openFileDialog.FileName);
+                /*
                 foreach (var item in Scene)
                 {
                     item.NormalMapImage = bitmap;
                 }
+                */
+                Scene[colorSelectedIndex].NormalMapImage = bitmap;
+
+                int nmWidth = bitmap.Width;
+                int nmHeight = bitmap.Height;
+                Color[,] normalMapCache = new Color[nmWidth, nmHeight];
+
+                BitmapData nmData = bitmap.LockBits(new Rectangle(0, 0, nmWidth, nmHeight), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+                unsafe
+                {
+                    byte* ptr = (byte*)nmData.Scan0;
+                    for (int y = 0; y < nmHeight; y++)
+                    {
+                        byte* row = ptr + (y * nmData.Stride);
+                        for (int x = 0; x < nmWidth; x++)
+                        {
+                            int idx = x * 4;
+                            normalMapCache[x, y] = Color.FromArgb(row[idx + 3], row[idx + 2], row[idx + 1], row[idx + 0]);
+                        }
+                    }
+                }
+                bitmap.UnlockBits(nmData);
+                Scene[colorSelectedIndex].NormalMapImageCache = normalMapCache;
+                Scene[colorSelectedIndex].NormalMapWidth = nmWidth;
+                Scene[colorSelectedIndex].NormalMapHeight = nmHeight;
             }
             pictureBox1.Invalidate();
         }
@@ -355,16 +422,17 @@ namespace BezierSurface
         {
             using OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Filter = "Pliki tekstowe|*.txt";
-            if(openFileDialog.ShowDialog() == DialogResult.OK)
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
                 var SceneCp = Scene;
                 Scene = new List<BezierSurface>();
                 if (!ReadFromFile(openFileDialog.FileName))
                 {
                     Scene = SceneCp;
-                } else
+                }
+                else
                 {
-                    foreach(var item in Scene)
+                    foreach (var item in Scene)
                     {
                         item.KDiffuse = (float)kdTrackBar.Value / 100;
                         item.KSpecular = (float)ksTrackBar.Value / 100;
@@ -373,6 +441,26 @@ namespace BezierSurface
                     }
                 }
                 pictureBox1.Invalidate();
+            }
+        }
+
+        private void indexZeroRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (indexZeroRadioButton.Checked)
+            {
+                colorSelectedIndex = 0;
+            }
+            else
+            {
+                colorSelectedIndex = 1;
+            }
+            if (Scene[colorSelectedIndex].SurfaceColorMode == BezierSurface.ColorMode.Solid)
+            {
+                colorRadioButton.Checked = true;
+            }
+            else
+            {
+                textureRadioButton.Checked = true;
             }
         }
     }

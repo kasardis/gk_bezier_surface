@@ -60,7 +60,7 @@ namespace BezierSurface
                 }
                 for(int i = 0; i < ControlPoints.Count-1; i++)
                 {
-                    g.FillEllipse(Brushes.Navy, ControlPoints[i].X - cpRadius / 2, ControlPoints[i].Y - cpRadius / 2, cpRadius, cpRadius);
+                    g.FillEllipse(Brushes.Red, ControlPoints[i].X - cpRadius / 2, ControlPoints[i].Y - cpRadius / 2, cpRadius, cpRadius);
                 }
             }
 
@@ -76,7 +76,7 @@ namespace BezierSurface
                 }
                 if (curvePoints.Count > 1)
                 {
-                    g.DrawLines(Pens.Navy, curvePoints.ToArray());
+                    g.DrawLines(Pens.Red, curvePoints.ToArray());
                 }
             }
 

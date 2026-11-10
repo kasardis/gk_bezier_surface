@@ -25,7 +25,13 @@ namespace BezierSurface
 
         public Color FillColor { get; set; } = Color.MediumPurple;
         public Bitmap? FillImage { get; set; } = null;
+        public int FillImageWidth;
+        public int FillImageHeight;
+        public Color[,]? FillImageCache { get; set; }
         public Bitmap? NormalMapImage { get; set; } = null;
+        public Color[,]? NormalMapImageCache { get; set; }
+        public int NormalMapWidth;
+        public int NormalMapHeight;
         public ColorMode SurfaceColorMode { get; set; } = ColorMode.Solid;
         public enum ColorMode
         {
@@ -321,6 +327,9 @@ namespace BezierSurface
             }
         }
         */
+
+        // lock bits
+        /*
         public void FillTriangles(Bitmap frameBuffer, float[,] zBuffer, LightSource lightSource)
         {
             if (!DrawFilledTriangles) return;
@@ -474,6 +483,172 @@ namespace BezierSurface
 
             frameBuffer.UnlockBits(bmpData);
         }
+        */
+        
+        // parallel
+        public void FillTriangles(Bitmap frameBuffer, float[,] zBuffer, LightSource lightSource)
+        {
+            if (!DrawFilledTriangles) return;
+
+            int width = frameBuffer.Width;
+            int height = frameBuffer.Height;
+            Vector3 V = new Vector3(0, 0, 1);
+            Vector3 movedLightPosition = new Vector3(lightSource.Position.X + width / 2, -lightSource.Position.Y + height / 2, lightSource.Position.Z);
+
+            Rectangle rect = new Rectangle(0, 0, width, height);
+            BitmapData bmpData = frameBuffer.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
+
+            unsafe
+            {
+                byte* scan0 = (byte*)bmpData.Scan0;
+                int stride = bmpData.Stride;
+
+                Parallel.ForEach(TriangleMesh.Triangles, triangle =>
+                //foreach (var triangle in TriangleMesh.Triangles)
+                {
+                    Vertex v1 = TransformCoordinates(triangle.V1, width, height);
+                    Vertex v2 = TransformCoordinates(triangle.V2, width, height);
+                    Vertex v3 = TransformCoordinates(triangle.V3, width, height);
+
+                    Vertex[] verts = new[] { v1, v2, v3 };
+                    Array.Sort(verts, (a, b) => a.PRotated.Y.CompareTo(b.PRotated.Y));
+
+                    Vertex top = verts[0];
+                    Vertex mid = verts[1];
+                    Vertex bot = verts[2];
+
+                    int yStart = (int)top.PRotated.Y;
+                    int yMid = (int)mid.PRotated.Y;
+                    int yEnd = (int)bot.PRotated.Y;
+
+                    int yMin = Math.Clamp(yStart, 0, height - 1);
+                    int yMax = Math.Clamp(yEnd, 0, height - 1);
+
+                    int helperX = (int)(top.PRotated.X + ((yMid - yStart) / (float)(yEnd - yStart)) * (bot.PRotated.X - top.PRotated.X));
+
+                    float denom = (v2.PRotated.Y - v3.PRotated.Y) * (v1.PRotated.X - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (v1.PRotated.Y - v3.PRotated.Y);
+
+                    for (int y = yMin; y <= yMax; y++)
+                    {
+                        int rawMinX, rawMaxX;
+                        if (y <= yMid)
+                        {
+                            if (mid.PRotated.X < helperX)
+                            {
+                                rawMinX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
+                                rawMaxX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
+                            }
+                            else
+                            {
+                                rawMaxX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
+                                rawMinX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
+                            }
+                        }
+                        else
+                        {
+                            if (mid.PRotated.X < helperX)
+                            {
+                                rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
+                                rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
+                            }
+                            else
+                            {
+                                rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
+                                rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
+                            }
+                        }
+
+                        int minX = Math.Max(0, Math.Min(width - 1, Math.Min(rawMinX, rawMaxX)));
+                        int maxX = Math.Max(0, Math.Min(width - 1, Math.Max(rawMinX, rawMaxX)));
+
+                        byte* row = scan0 + (y * stride);
+
+                        for (int x = minX; x <= maxX; x++)
+                        {
+                            float l1 = ((v2.PRotated.Y - v3.PRotated.Y) * (x - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (y - v3.PRotated.Y)) / denom;
+                            float l2 = ((v3.PRotated.Y - v1.PRotated.Y) * (x - v3.PRotated.X) + (v1.PRotated.X - v3.PRotated.X) * (y - v3.PRotated.Y)) / denom;
+                            float l3 = 1.0f - l1 - l2;
+
+                            float interpolatedZ = l1 * v1.PRotated.Z + l2 * v2.PRotated.Z + l3 * v3.PRotated.Z;
+
+                            bool updatedZBuffer = false;
+                            lock (zBuffer)
+                            {
+                                if (interpolatedZ >= zBuffer[x, y])
+                                {
+                                    zBuffer[x, y] = interpolatedZ;
+                                    updatedZBuffer = true;
+                                }
+                            }
+
+                            if (updatedZBuffer)
+                            {
+
+                                float u = l1 * v1.U + l2 * v2.U + l3 * v3.U;
+                                float v = l1 * v1.V + l2 * v2.V + l3 * v3.V;
+
+                                Vector3 N_surface = Vector3.Normalize(v1.NormalRotated * l1 + v2.NormalRotated * l2 + v3.NormalRotated * l3);
+                                Vector3 Pu_interp = Vector3.Normalize(v1.PuRotated * l1 + v2.PuRotated * l2 + v3.PuRotated * l3);
+                                Vector3 Pv_interp = Vector3.Normalize(v1.PvRotated * l1 + v2.PvRotated * l2 + v3.PvRotated * l3);
+
+                                Vector3 N = N_surface;
+                                if (DrawNormalMap && NormalMapImage != null && NormalMapImageCache != null)
+                                {
+                                    int mapX = Math.Clamp((int)(u * (NormalMapWidth - 1)), 0, NormalMapWidth - 1);
+                                    int mapY = Math.Clamp((int)(v * (NormalMapHeight - 1)), 0, NormalMapHeight - 1);
+                                    Color nc = NormalMapImageCache[mapX, mapY];
+                                    
+                                    float nx = (nc.R / 255f) * 2f - 1f;
+                                    float ny = (nc.G / 255f) * 2f - 1f;
+                                    float nz = (nc.B / 255f) * 2f - 1f;
+
+                                    N = Vector3.Normalize(nx * Pu_interp + ny * Pv_interp + nz * N_surface);
+                                }
+
+                                Vector3 IO;
+                                if (SurfaceColorMode == ColorMode.Image && FillImage != null && FillImageCache != null)
+                                {
+                                    int texX = Math.Clamp((int)(u * (FillImageWidth - 1)), 0, FillImageWidth - 1);
+                                    int texY = Math.Clamp((int)(v * (FillImageHeight - 1)), 0, FillImageHeight - 1);
+                                    Color c = FillImageCache[texX, texY];
+                                    IO = new Vector3(c.R / 255f, c.G / 255f, c.B / 255f);
+                                }
+                                else
+                                {
+                                    IO = new Vector3(FillColor.R / 255f, FillColor.G / 255f, FillColor.B / 255f);
+                                }
+                                Vector3 IL = new Vector3(lightSource.Color.R / 255f, lightSource.Color.G / 255f, lightSource.Color.B / 255f);
+
+                                if (Vector3.Dot(N, V) < 0)
+                                {
+                                    N = -N;
+                                }
+
+                                Vector3 pixelPos = new Vector3(x, y, interpolatedZ);
+                                Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
+                                float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
+                                Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
+                                float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
+                                Vector3 I = KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
+
+                                int red = (int)Math.Clamp(I.X * 255f, 0, 255);
+                                int green = (int)Math.Clamp(I.Y * 255f, 0, 255);
+                                int blue = (int)Math.Clamp(I.Z * 255f, 0, 255);
+
+                                int idx = x * 4;
+                                row[idx + 0] = (byte)blue;
+                                row[idx + 1] = (byte)green;
+                                row[idx + 2] = (byte)red;
+                                row[idx + 3] = 255;
+                            }
+                        }
+                    }
+                });
+            }
+
+            frameBuffer.UnlockBits(bmpData);
+        }
+        
 
         private Vertex TransformCoordinates(Vertex v, int screenWidth, int screenHeight)
         {

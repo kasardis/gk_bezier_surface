@@ -30,7 +30,12 @@
         {
             menuStrip1 = new MenuStrip();
             helpToolStripMenuItem = new ToolStripMenuItem();
+            loadFileToolStripMenuItem = new ToolStripMenuItem();
             panel1 = new Panel();
+            panel2 = new Panel();
+            indexOneRadioButton = new RadioButton();
+            indexZeroRadioButton = new RadioButton();
+            label6 = new Label();
             drawControlPointsCheckBox = new CheckBox();
             drawTrajectoryCheckBox = new CheckBox();
             lightColorButton = new Button();
@@ -56,9 +61,9 @@
             label1 = new Label();
             triangulationTrackBar = new TrackBar();
             pictureBox1 = new PictureBox();
-            loadFileToolStripMenuItem = new ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             panel1.SuspendLayout();
+            panel2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)lightzTrackBar).BeginInit();
             ((System.ComponentModel.ISupportInitialize)mTrackBar).BeginInit();
             ((System.ComponentModel.ISupportInitialize)ksTrackBar).BeginInit();
@@ -84,9 +89,18 @@
             helpToolStripMenuItem.Text = "Help";
             helpToolStripMenuItem.Click += helpToolStripMenuItem_Click;
             // 
+            // loadFileToolStripMenuItem
+            // 
+            loadFileToolStripMenuItem.Name = "loadFileToolStripMenuItem";
+            loadFileToolStripMenuItem.Size = new Size(102, 24);
+            loadFileToolStripMenuItem.Text = "Wczytaj plik";
+            loadFileToolStripMenuItem.Click += loadFileToolStripMenuItem_Click;
+            // 
             // panel1
             // 
             panel1.BackColor = Color.WhiteSmoke;
+            panel1.Controls.Add(panel2);
+            panel1.Controls.Add(label6);
             panel1.Controls.Add(drawControlPointsCheckBox);
             panel1.Controls.Add(drawTrajectoryCheckBox);
             panel1.Controls.Add(lightColorButton);
@@ -115,6 +129,47 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(351, 728);
             panel1.TabIndex = 1;
+            // 
+            // panel2
+            // 
+            panel2.Controls.Add(indexOneRadioButton);
+            panel2.Controls.Add(indexZeroRadioButton);
+            panel2.Location = new Point(218, 479);
+            panel2.Name = "panel2";
+            panel2.Size = new Size(119, 29);
+            panel2.TabIndex = 27;
+            // 
+            // indexOneRadioButton
+            // 
+            indexOneRadioButton.AutoSize = true;
+            indexOneRadioButton.Location = new Point(50, 3);
+            indexOneRadioButton.Name = "indexOneRadioButton";
+            indexOneRadioButton.Size = new Size(38, 24);
+            indexOneRadioButton.TabIndex = 1;
+            indexOneRadioButton.Text = "1";
+            indexOneRadioButton.UseVisualStyleBackColor = true;
+            // 
+            // indexZeroRadioButton
+            // 
+            indexZeroRadioButton.AutoSize = true;
+            indexZeroRadioButton.Checked = true;
+            indexZeroRadioButton.Location = new Point(6, 3);
+            indexZeroRadioButton.Name = "indexZeroRadioButton";
+            indexZeroRadioButton.Size = new Size(38, 24);
+            indexZeroRadioButton.TabIndex = 0;
+            indexZeroRadioButton.TabStop = true;
+            indexZeroRadioButton.Text = "0";
+            indexZeroRadioButton.UseVisualStyleBackColor = true;
+            indexZeroRadioButton.CheckedChanged += indexZeroRadioButton_CheckedChanged;
+            // 
+            // label6
+            // 
+            label6.AutoSize = true;
+            label6.Location = new Point(133, 484);
+            label6.Name = "label6";
+            label6.Size = new Size(76, 20);
+            label6.TabIndex = 26;
+            label6.Text = "Id obiektu";
             // 
             // drawControlPointsCheckBox
             // 
@@ -386,13 +441,6 @@
             pictureBox1.MouseMove += pictureBox1_MouseMove;
             pictureBox1.MouseUp += pictureBox1_MouseUp;
             // 
-            // loadFileToolStripMenuItem
-            // 
-            loadFileToolStripMenuItem.Name = "loadFileToolStripMenuItem";
-            loadFileToolStripMenuItem.Size = new Size(102, 24);
-            loadFileToolStripMenuItem.Text = "Wczytaj plik";
-            loadFileToolStripMenuItem.Click += loadFileToolStripMenuItem_Click;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(8F, 20F);
@@ -408,6 +456,8 @@
             menuStrip1.PerformLayout();
             panel1.ResumeLayout(false);
             panel1.PerformLayout();
+            panel2.ResumeLayout(false);
+            panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)lightzTrackBar).EndInit();
             ((System.ComponentModel.ISupportInitialize)mTrackBar).EndInit();
             ((System.ComponentModel.ISupportInitialize)ksTrackBar).EndInit();
@@ -449,5 +499,9 @@
         private CheckBox drawTrajectoryCheckBox;
         private CheckBox drawControlPointsCheckBox;
         private ToolStripMenuItem loadFileToolStripMenuItem;
+        private Label label6;
+        private Panel panel2;
+        private RadioButton indexOneRadioButton;
+        private RadioButton indexZeroRadioButton;
     }
 }
