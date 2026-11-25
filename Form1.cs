@@ -177,7 +177,13 @@ namespace BezierSurface
                 {
                     lightSource.ControlPoints[lightSource.ControlPoints.Count - 1] = newCp;
                 }
-                lightSource.Position = lightSource.EvaluatePosition(lightSource.T);
+                lightSource.Positions.Clear();
+                for (int i = 0; i < lightSource.NumLights; i++)
+                {
+                    float t = lightSource.T + (float)i / (float)lightSource.NumLights;
+                    if (t > 1) t -= 1;
+                    lightSource.Positions.Add(lightSource.EvaluatePosition(t));
+                }
             }
             else
             {
@@ -462,6 +468,82 @@ namespace BezierSurface
             {
                 textureRadioButton.Checked = true;
             }
+        }
+
+        private void radioButton1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton1.Checked)
+            {
+                lightSource.NumLights = 1;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void radioButton2_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton2.Checked)
+            {
+                lightSource.NumLights = 2;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void radioButton3_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton3.Checked)
+            {
+                lightSource.NumLights = 3;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void radioButton4_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton4.Checked)
+            {
+                lightSource.NumLights = 4;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void pointLightRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (pointLightRadioButton.Checked)
+            {
+                lightSource.CurrentLightType = LightSource.LightType.Point;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        // directional light, visual studio doesn't want to change the name
+        private void radioButton5_CheckedChanged(object sender, EventArgs e)
+        {
+            if (radioButton5.Checked)
+            {
+                lightSource.CurrentLightType = LightSource.LightType.Directional;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void reflectorLightRadioButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (reflectorLightRadioButton.Checked)
+            {
+                lightSource.CurrentLightType = LightSource.LightType.Reflector;
+                pictureBox1.Invalidate();
+            }
+        }
+
+        private void heightMapCheckbox_CheckedChanged(object sender, EventArgs e)
+        {
+            BezierSurface.DrawHeightMap = heightMapCheckbox.Checked;
+            pictureBox1.Invalidate();
+        }
+
+        private void trackBar1_Scroll(object sender, EventArgs e)
+        {
+            BezierSurface.HeightMapK = trackBar1.Value;
+            pictureBox1.Invalidate();
         }
     }
 }

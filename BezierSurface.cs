@@ -21,7 +21,9 @@ namespace BezierSurface
         public static bool DrawTriangleMesh = true;
         public static bool DrawFilledTriangles = true;
         public static bool DrawNormalMap = false;
+        public static bool DrawHeightMap = false;
         public const int NumberOfPoints = 16;
+        public static int HeightMapK = 2;
 
         public Color FillColor { get; set; } = Color.MediumPurple;
         public Bitmap? FillImage { get; set; } = null;
@@ -193,298 +195,6 @@ namespace BezierSurface
             }
         }
 
-
-        // wersja bez unsafe lockbits
-        /*
-        public void FillTriangles(Bitmap frameBuffer, float[,] zBuffer, LightSource lightSource)
-        {
-            if (!DrawFilledTriangles) return;
-
-            int width = frameBuffer.Width;
-            int height = frameBuffer.Height;
-            Vector3 V = new Vector3(0, 0, 1);
-            Vector3 movedLightPosition = new Vector3(lightSource.Position.X - width / 2, -lightSource.Position.Y - height / 2, lightSource.Position.Z);
-
-            foreach (var triangle in TriangleMesh.Triangles)
-            {
-                Vertex v1 = TransformCoordinates(triangle.V1, width, height);
-                Vertex v2 = TransformCoordinates(triangle.V2, width, height);
-                Vertex v3 = TransformCoordinates(triangle.V3, width, height);
-
-                Vertex[] verts = new[] { v1, v2, v3 };
-                Array.Sort(verts, (a, b) => a.PRotated.Y.CompareTo(b.PRotated.Y));
-
-                Vertex top = verts[0];
-                Vertex mid = verts[1];
-                Vertex bot = verts[2];
-
-                int yStart = (int)top.PRotated.Y;
-                int yMid = (int)mid.PRotated.Y;
-                int yEnd = (int)bot.PRotated.Y;
-
-                int yMin = Math.Clamp(yStart, 0, height - 1);
-                int yMax = Math.Clamp(yEnd, 0, height - 1);
-
-                int helperX = (int)(top.PRotated.X + ((yMid - yStart) / (float)(yEnd - yStart)) * (bot.PRotated.X - top.PRotated.X));
-
-                float denom = (v2.PRotated.Y - v3.PRotated.Y) * (v1.PRotated.X - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (v1.PRotated.Y - v3.PRotated.Y);
-
-                for (int y = yMin; y <= yMax; y++)
-                {
-                    int rawMinX, rawMaxX;
-                    if (y <= yMid)
-                    {
-                        if (mid.PRotated.X < helperX)
-                        {
-                            rawMinX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
-                            rawMaxX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
-                        }
-                        else
-                        {
-                            rawMaxX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
-                            rawMinX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
-                        }
-                    }
-                    else
-                    {
-                        if (mid.PRotated.X < helperX)
-                        {
-                            rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
-                            rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
-                        }
-                        else
-                        {
-                            rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
-                            rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
-                        }
-                    }
-
-                    int minX = Math.Max(0, Math.Min(width - 1, Math.Min(rawMinX, rawMaxX)));
-                    int maxX = Math.Max(0, Math.Min(width - 1, Math.Max(rawMinX, rawMaxX)));
-
-                    for (int x = minX; x <= maxX; x++)
-                    {
-                        float l1 = ((v2.PRotated.Y - v3.PRotated.Y) * (x - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (y - v3.PRotated.Y)) / denom;
-                        float l2 = ((v3.PRotated.Y - v1.PRotated.Y) * (x - v3.PRotated.X) + (v1.PRotated.X - v3.PRotated.X) * (y - v3.PRotated.Y)) / denom;
-                        float l3 = 1.0f - l1 - l2;
-
-                        float interpolatedZ = l1 * v1.PRotated.Z + l2 * v2.PRotated.Z + l3 * v3.PRotated.Z;
-                        if (interpolatedZ >= zBuffer[x, y])
-                        {
-                            zBuffer[x, y] = interpolatedZ;
-
-                            float u = l1 * v1.U + l2 * v2.U + l3 * v3.U;
-                            float v = l1 * v1.V + l2 * v2.V + l3 * v3.V;
-
-                            Vector3 N_surface = Vector3.Normalize(v1.NormalRotated * l1 + v2.NormalRotated * l2 + v3.NormalRotated * l3);
-                            Vector3 Pu_interp = Vector3.Normalize(v1.PuRotated * l1 + v2.PuRotated * l2 + v3.PuRotated * l3);
-                            Vector3 Pv_interp = Vector3.Normalize(v1.PvRotated * l1 + v2.PvRotated * l2 + v3.PvRotated * l3);
-
-                            Vector3 N = N_surface;
-                            if(DrawNormalMap && NormalMapImage != null)
-                            {
-                                int mapX = Math.Clamp((int)(u * (NormalMapImage.Width - 1)), 0, NormalMapImage.Width - 1);
-                                int mapY = Math.Clamp((int)(v * (NormalMapImage.Height - 1)), 0, NormalMapImage.Height - 1);
-                                Color nc = NormalMapImage.GetPixel(mapX, mapY);
-
-                                float nx = (nc.R / 255f) * 2f - 1f;
-                                float ny = (nc.G / 255f) * 2f - 1f;
-                                float nz = (nc.B / 255f) * 2f - 1f;
-
-                                // Mnożenie macierzy M = [Pu, Pv, N_surface] przez N_texture
-                                N = Vector3.Normalize(nx * Pu_interp + ny * Pv_interp + nz * N_surface);
-                            }
-
-                            Vector3 IO;
-                            if (SurfaceColorMode == ColorMode.Image && FillImage != null)
-                            {
-                                int texX = Math.Clamp((int)(u * (FillImage.Width - 1)), 0, FillImage.Width - 1);
-                                int texY = Math.Clamp((int)(v * (FillImage.Height - 1)), 0, FillImage.Height - 1);
-                                Color c = FillImage.GetPixel(texX, texY);
-                                IO = new Vector3(c.R / 255f, c.G / 255f, c.B / 255f);
-                            }
-                            else
-                            {
-                                IO = new Vector3(FillColor.R / 255f, FillColor.G / 255f, FillColor.B / 255f);
-                            }
-                            Vector3 IL = new Vector3(lightSource.Color.R / 255f, lightSource.Color.G / 255f, lightSource.Color.B / 255f);
-
-                            Vector3 pixelPos = new Vector3(x, y, interpolatedZ);
-                            Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
-                            float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
-                            Vector3 R = 2f * Vector3.Dot(N, L) * N - L;
-                            float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
-                            Vector3 I = KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
-
-                            int red = (int)Math.Clamp(I.X * 255f, 0, 255);
-                            int green = (int)Math.Clamp(I.Y * 255f, 0, 255);
-                            int blue = (int)Math.Clamp(I.Z * 255f, 0, 255);
-
-                            frameBuffer.SetPixel(x, y, Color.FromArgb(red, green, blue));
-                        }
-                    }
-                }
-            }
-        }
-        */
-
-        // lock bits
-        /*
-        public void FillTriangles(Bitmap frameBuffer, float[,] zBuffer, LightSource lightSource)
-        {
-            if (!DrawFilledTriangles) return;
-
-            int width = frameBuffer.Width;
-            int height = frameBuffer.Height;
-            Vector3 V = new Vector3(0, 0, 1);
-            Vector3 movedLightPosition = new Vector3(lightSource.Position.X + width / 2, -lightSource.Position.Y + height / 2, lightSource.Position.Z);
-
-            Rectangle rect = new Rectangle(0, 0, width, height);
-            BitmapData bmpData = frameBuffer.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-
-            unsafe
-            {
-                byte* scan0 = (byte*)bmpData.Scan0;
-                int stride = bmpData.Stride;
-
-                foreach (var triangle in TriangleMesh.Triangles)
-                {
-                    Vertex v1 = TransformCoordinates(triangle.V1, width, height);
-                    Vertex v2 = TransformCoordinates(triangle.V2, width, height);
-                    Vertex v3 = TransformCoordinates(triangle.V3, width, height);
-
-                    Vertex[] verts = new[] { v1, v2, v3 };
-                    Array.Sort(verts, (a, b) => a.PRotated.Y.CompareTo(b.PRotated.Y));
-
-                    Vertex top = verts[0];
-                    Vertex mid = verts[1];
-                    Vertex bot = verts[2];
-
-                    int yStart = (int)top.PRotated.Y;
-                    int yMid = (int)mid.PRotated.Y;
-                    int yEnd = (int)bot.PRotated.Y;
-
-                    int yMin = Math.Clamp(yStart, 0, height - 1);
-                    int yMax = Math.Clamp(yEnd, 0, height - 1);
-
-                    int helperX = (int)(top.PRotated.X + ((yMid - yStart) / (float)(yEnd - yStart)) * (bot.PRotated.X - top.PRotated.X));
-
-                    float denom = (v2.PRotated.Y - v3.PRotated.Y) * (v1.PRotated.X - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (v1.PRotated.Y - v3.PRotated.Y);
-
-                    for (int y = yMin; y <= yMax; y++)
-                    {
-                        int rawMinX, rawMaxX;
-                        if (y <= yMid)
-                        {
-                            if (mid.PRotated.X < helperX)
-                            {
-                                rawMinX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
-                                rawMaxX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
-                            }
-                            else
-                            {
-                                rawMaxX = (int)(top.PRotated.X + (y - yStart) * (mid.PRotated.X - top.PRotated.X) / (yMid - yStart));
-                                rawMinX = (int)(top.PRotated.X + (y - yStart) * (helperX - top.PRotated.X) / (yMid - yStart));
-                            }
-                        }
-                        else
-                        {
-                            if (mid.PRotated.X < helperX)
-                            {
-                                rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
-                                rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
-                            }
-                            else
-                            {
-                                rawMaxX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - mid.PRotated.X) / (yEnd - yMid));
-                                rawMinX = (int)(bot.PRotated.X + (y - yEnd) * (bot.PRotated.X - helperX) / (yEnd - yMid));
-                            }
-                        }
-
-                        int minX = Math.Max(0, Math.Min(width - 1, Math.Min(rawMinX, rawMaxX)));
-                        int maxX = Math.Max(0, Math.Min(width - 1, Math.Max(rawMinX, rawMaxX)));
-
-                        byte* row = scan0 + (y * stride);
-
-                        for (int x = minX; x <= maxX; x++)
-                        {
-                            float l1 = ((v2.PRotated.Y - v3.PRotated.Y) * (x - v3.PRotated.X) + (v3.PRotated.X - v2.PRotated.X) * (y - v3.PRotated.Y)) / denom;
-                            float l2 = ((v3.PRotated.Y - v1.PRotated.Y) * (x - v3.PRotated.X) + (v1.PRotated.X - v3.PRotated.X) * (y - v3.PRotated.Y)) / denom;
-                            float l3 = 1.0f - l1 - l2;
-
-                            float interpolatedZ = l1 * v1.PRotated.Z + l2 * v2.PRotated.Z + l3 * v3.PRotated.Z;
-                            if (interpolatedZ >= zBuffer[x, y])
-                            {
-                                zBuffer[x, y] = interpolatedZ;
-
-                                float u = l1 * v1.U + l2 * v2.U + l3 * v3.U;
-                                float v = l1 * v1.V + l2 * v2.V + l3 * v3.V;
-
-                                Vector3 N_surface = Vector3.Normalize(v1.NormalRotated * l1 + v2.NormalRotated * l2 + v3.NormalRotated * l3);
-                                Vector3 Pu_interp = Vector3.Normalize(v1.PuRotated * l1 + v2.PuRotated * l2 + v3.PuRotated * l3);
-                                Vector3 Pv_interp = Vector3.Normalize(v1.PvRotated * l1 + v2.PvRotated * l2 + v3.PvRotated * l3);
-
-                                Vector3 N = N_surface;
-                                if (DrawNormalMap && NormalMapImage != null)
-                                {
-                                    int mapX = Math.Clamp((int)(u * (NormalMapImage.Width - 1)), 0, NormalMapImage.Width - 1);
-                                    int mapY = Math.Clamp((int)(v * (NormalMapImage.Height - 1)), 0, NormalMapImage.Height - 1);
-                                    Color nc = NormalMapImage.GetPixel(mapX, mapY);
-
-                                    float nx = (nc.R / 255f) * 2f - 1f;
-                                    float ny = (nc.G / 255f) * 2f - 1f;
-                                    float nz = (nc.B / 255f) * 2f - 1f;
-
-                                    N = Vector3.Normalize(nx * Pu_interp + ny * Pv_interp + nz * N_surface);
-                                }
-
-                                Vector3 IO;
-                                if (SurfaceColorMode == ColorMode.Image && FillImage != null)
-                                {
-                                    int texX = Math.Clamp((int)(u * (FillImage.Width - 1)), 0, FillImage.Width - 1);
-                                    int texY = Math.Clamp((int)(v * (FillImage.Height - 1)), 0, FillImage.Height - 1);
-                                    Color c = FillImage.GetPixel(texX, texY);
-                                    IO = new Vector3(c.R / 255f, c.G / 255f, c.B / 255f);
-                                }
-                                else
-                                {
-                                    IO = new Vector3(FillColor.R / 255f, FillColor.G / 255f, FillColor.B / 255f);
-                                }
-                                Vector3 IL = new Vector3(lightSource.Color.R / 255f, lightSource.Color.G / 255f, lightSource.Color.B / 255f);
-
-                                // dodane żeby powierzchnia mogła być oświetlona dwustronnie
-                                // niezgodne ze specyfikacją?
-                                if (Vector3.Dot(N, V) < 0)
-                                {
-                                    N = -N;
-                                }
-
-                                Vector3 pixelPos = new Vector3(x, y, interpolatedZ);
-                                Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
-                                float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
-                                Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
-                                float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
-                                Vector3 I = KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
-
-                                int red = (int)Math.Clamp(I.X * 255f, 0, 255);
-                                int green = (int)Math.Clamp(I.Y * 255f, 0, 255);
-                                int blue = (int)Math.Clamp(I.Z * 255f, 0, 255);
-
-                                int idx = x * 4;
-                                row[idx + 0] = (byte)blue;
-                                row[idx + 1] = (byte)green;
-                                row[idx + 2] = (byte)red;
-                                row[idx + 3] = 255;
-                            }
-                        }
-                    }
-                }
-            }
-
-            frameBuffer.UnlockBits(bmpData);
-        }
-        */
-        
         // parallel
         public void FillTriangles(Bitmap frameBuffer, float[,] zBuffer, LightSource lightSource)
         {
@@ -493,7 +203,12 @@ namespace BezierSurface
             int width = frameBuffer.Width;
             int height = frameBuffer.Height;
             Vector3 V = new Vector3(0, 0, 1);
-            Vector3 movedLightPosition = new Vector3(lightSource.Position.X + width / 2, -lightSource.Position.Y + height / 2, lightSource.Position.Z);
+            List<Vector3> movedLights = [];
+            foreach(var pos in lightSource.Positions)
+            {
+                Vector3 moved = new Vector3(pos.X + width / 2, -pos.Y + height / 2, pos.Z);
+                movedLights.Add(moved);
+            }
 
             Rectangle rect = new Rectangle(0, 0, width, height);
             BitmapData bmpData = frameBuffer.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
@@ -597,12 +312,24 @@ namespace BezierSurface
                                     int mapX = Math.Clamp((int)(u * (NormalMapWidth - 1)), 0, NormalMapWidth - 1);
                                     int mapY = Math.Clamp((int)(v * (NormalMapHeight - 1)), 0, NormalMapHeight - 1);
                                     Color nc = NormalMapImageCache[mapX, mapY];
-                                    
+
                                     float nx = (nc.R / 255f) * 2f - 1f;
                                     float ny = (nc.G / 255f) * 2f - 1f;
                                     float nz = (nc.B / 255f) * 2f - 1f;
 
                                     N = Vector3.Normalize(nx * Pu_interp + ny * Pv_interp + nz * N_surface);
+                                } else if(DrawHeightMap && NormalMapImage != null && NormalMapImageCache != null)
+                                {
+                                    int mapX = Math.Clamp((int)(u * (NormalMapWidth - 1)), 0, NormalMapWidth - 1);
+                                    int mapY = Math.Clamp((int)(v * (NormalMapHeight - 1)), 0, NormalMapHeight - 1);
+                                    int uleft = Math.Clamp((int)(u * (NormalMapWidth - 1))-1, 0, NormalMapWidth - 1);
+                                    int uright = Math.Clamp((int)(u * (NormalMapWidth - 1))+1, 0, NormalMapWidth - 1);
+                                    int vleft = Math.Clamp((int)(v * (NormalMapHeight - 1)) - 1, 0, NormalMapHeight - 1);
+                                    int vright = Math.Clamp((int)(v * (NormalMapHeight - 1)) + 1, 0, NormalMapHeight - 1);
+                                    float Hu = (NormalMapImageCache[uright, mapY].R - NormalMapImageCache[uleft, mapY].R) / 2;
+                                    float Hv = (NormalMapImageCache[mapX, vright].R - NormalMapImageCache[mapX, vleft].R) / 2;
+                                    Vector3 D = HeightMapK * (Hu * Vector3.Cross(N, Pv_interp) - Hv * Vector3.Cross(N, Pu_interp));
+                                    N = Vector3.Normalize(N + D);
                                 }
 
                                 Vector3 IO;
@@ -625,11 +352,40 @@ namespace BezierSurface
                                 }
 
                                 Vector3 pixelPos = new Vector3(x, y, interpolatedZ);
-                                Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
-                                float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
-                                Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
-                                float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
-                                Vector3 I = KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
+                                Vector3 I = Vector3.Zero;
+                                if (lightSource.CurrentLightType == LightSource.LightType.Directional)
+                                {
+                                    Vector3 L = new Vector3(0, 0, 1);
+                                    Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
+                                    float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
+                                    float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
+                                    I = KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
+                                } else if(lightSource.CurrentLightType == LightSource.LightType.Reflector)
+                                {
+                                    foreach (var movedLightPosition in movedLights)
+                                    {
+                                        Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
+                                        Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
+                                        float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
+                                        float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
+                                        float cosRef = Vector3.Dot(Vector3.Normalize(movedLightPosition), L);
+                                        if(cosRef < 0)
+                                        {
+                                            cosRef = -cosRef;
+                                        }
+                                        I += (float)Math.Pow(cosRef, lightSource.ReflectorM) * (KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror));
+                                    }
+                                } else if(lightSource.CurrentLightType == LightSource.LightType.Point)
+                                {
+                                    foreach (var movedLightPosition in movedLights)
+                                    {
+                                        Vector3 L = Vector3.Normalize(movedLightPosition - pixelPos);
+                                        Vector3 R = Vector3.Normalize(2f * Vector3.Dot(N, L) * N - L);
+                                        float cosVR = Math.Max(0f, V.X * R.X + V.Y * R.Y + V.Z * R.Z);
+                                        float cosNL = Math.Max(0f, N.X * L.X + N.Y * L.Y + N.Z * L.Z);
+                                        I += KDiffuse * IL * IO * cosNL + KSpecular * IL * IO * (float)Math.Pow(cosVR, Mirror);
+                                    }
+                                }
 
                                 int red = (int)Math.Clamp(I.X * 255f, 0, 255);
                                 int green = (int)Math.Clamp(I.Y * 255f, 0, 255);

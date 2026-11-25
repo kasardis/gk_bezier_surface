@@ -9,7 +9,8 @@ namespace BezierSurface
 {
     public class LightSource
     {
-        public Vector3 Position { get; set; }
+        //public Vector3 Position { get; set; }
+        public List<Vector3> Positions { get; set; } = []; 
         public List<Vector3> ControlPoints { get; set; }
         public Color Color { get; set; } = Color.White;
         public float T { get; set; } = 0f;
@@ -18,18 +19,34 @@ namespace BezierSurface
         private int cpRadius = 8;
         public bool DrawControlPoints = false;
         public bool DrawTrajectory = false;
+        public int NumLights { get; set; } = 1;
+        public LightType CurrentLightType { get; set; } = LightType.Point;
+        public double ReflectorM { get; set; } = 1;
+
+        public enum LightType
+        {
+            Point,
+            Directional,
+            Reflector
+        }
 
         public LightSource(List<Vector3> controlPoints)
         {
             ControlPoints = controlPoints;
-            Position = EvaluatePosition(T);
+            Positions.Add(EvaluatePosition(T));
         }
 
         public void Update()
         {
             T += Speed;
             if (T > 1f) T = 0f;
-            Position = EvaluatePosition(T);
+            Positions.Clear();
+            for(int i = 0; i < NumLights; i++)
+            {
+                float t = T + (float)i / (float)NumLights;
+                if (t > 1) t -= 1;
+                Positions.Add(EvaluatePosition(t));
+            }
         }
 
         public Vector3 EvaluatePosition(float t)
@@ -80,9 +97,15 @@ namespace BezierSurface
                 }
             }
 
-            using SolidBrush sunBrush = new SolidBrush(Color);
-            g.FillEllipse(sunBrush, Position.X - Radius / 2, Position.Y - Radius / 2, Radius, Radius);
-            g.DrawEllipse(Pens.Gray, Position.X - Radius / 2, Position.Y - Radius / 2, Radius, Radius);
+            if(CurrentLightType != LightType.Directional)
+            {
+                using SolidBrush sunBrush = new SolidBrush(Color);
+                foreach (var Position in Positions)
+                {
+                    g.FillEllipse(sunBrush, Position.X - Radius / 2, Position.Y - Radius / 2, Radius, Radius);
+                    g.DrawEllipse(Pens.Gray, Position.X - Radius / 2, Position.Y - Radius / 2, Radius, Radius);
+                }
+            }
         }
 
         public int HitTest(PointF pos)
